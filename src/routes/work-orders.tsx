@@ -140,10 +140,10 @@ function OrderDialog({ open, onOpenChange }: any) {
           <Button onClick={async () => {
             if (!data.customerName || !data.plate) return toast.error("Cliente y placa requeridos");
             await db.workOrders.add({
+              ...(data as WorkOrder),
               date: Date.now(),
               status: "pending",
               parts: [],
-              ...(data as WorkOrder),
             });
             toast.success("Orden creada");
             setForm({});

@@ -20,8 +20,7 @@ function Backups() {
   async function exportAll() {
     const data: Record<string, unknown[]> = {};
     for (const t of tableNames) {
-      // @ts-expect-error dynamic table access
-      data[t] = await db[t].toArray();
+      data[t] = await (db as any)[t].toArray();
     }
     const blob = new Blob([JSON.stringify({ version: 1, exportedAt: Date.now(), data }, null, 2)], {
       type: "application/json",
@@ -42,11 +41,9 @@ function Backups() {
       const data = parsed.data ?? parsed;
       if (!confirm("Esto reemplazará todos los datos actuales. ¿Continuar?")) return;
       for (const t of tableNames) {
-        // @ts-expect-error dynamic
-        await db[t].clear();
+        await (db as any)[t].clear();
         if (Array.isArray(data[t])) {
-          // @ts-expect-error dynamic
-          await db[t].bulkAdd(data[t]);
+          await (db as any)[t].bulkAdd(data[t]);
         }
       }
       toast.success("Backup restaurado");

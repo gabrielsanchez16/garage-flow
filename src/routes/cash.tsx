@@ -35,10 +35,10 @@ function Cash() {
   const [moveDlg, setMoveDlg] = useState(false);
   const session = useLiveQuery(() => db.cashSessions.where("status").equals("open").first(), []);
   const movements = useLiveQuery(
-    () =>
+    async () =>
       session
-        ? db.cashMovements.where("sessionId").equals(session.id!).reverse().sortBy("date")
-        : Promise.resolve([]),
+        ? await db.cashMovements.where("sessionId").equals(session.id!).reverse().sortBy("date")
+        : [],
     [session?.id]
   ) ?? [];
   const history = useLiveQuery(() => db.cashSessions.orderBy("openedAt").reverse().limit(10).toArray(), []) ?? [];
