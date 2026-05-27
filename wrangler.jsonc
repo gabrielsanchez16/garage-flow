@@ -8,6 +8,8 @@
   "main": "src/server.ts",
   "alias": {
     "tanstack-start-manifest:v": "./empty.js",
-    "tanstack-start-injected-head-scripts:v": "./empty.js"
+    "tanstack-start-injected-head-scripts:v": "./empty.js",
+    "#tanstack-router-entry": "./src/router.tsx",
+    "#tanstack-start-entry": "./src/server.ts"
   }
 }
