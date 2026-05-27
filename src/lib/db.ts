@@ -157,33 +157,8 @@ export async function seedIfEmpty() {
   await db.settings.add({
     shopName: "FullStack Garage",
     currency: "COP",
-    phone: "+57 300 000 0000",
-    address: "Cra 10 #20-30",
+    phone: "+57 311 603 6787",
+    address: "Cra 64 #4-70 Panamericano Buenaventura",
   });
 
-  await db.products.bulkAdd([
-    { name: "Aceite Motul 5100 10W40", sku: "ACE-001", category: "Lubricantes", stock: 24, minStock: 5, cost: 35000, price: 55000, supplier: "Motul CO", createdAt: Date.now() },
-    { name: "Filtro de aceite K&N", sku: "FIL-002", category: "Filtros", stock: 12, minStock: 4, cost: 18000, price: 32000, supplier: "K&N", createdAt: Date.now() },
-    { name: "Bujía NGK Iridium", sku: "BUJ-003", category: "Encendido", stock: 8, minStock: 6, cost: 22000, price: 42000, supplier: "NGK", createdAt: Date.now() },
-    { name: "Pastillas de freno Brembo", sku: "FRE-004", category: "Frenos", stock: 3, minStock: 5, cost: 60000, price: 95000, supplier: "Brembo", createdAt: Date.now() },
-    { name: "Cadena DID 520", sku: "TRA-005", category: "Transmisión", stock: 5, minStock: 2, cost: 180000, price: 260000, supplier: "DID", createdAt: Date.now() },
-    { name: "Llanta Pirelli Diablo 120/70", sku: "LLA-006", category: "Llantas", stock: 6, minStock: 3, cost: 280000, price: 420000, supplier: "Pirelli", createdAt: Date.now() },
-    { name: "Kit de arrastre Renthal", sku: "TRA-007", category: "Transmisión", stock: 2, minStock: 2, cost: 320000, price: 480000, supplier: "Renthal", createdAt: Date.now() },
-    { name: "Refrigerante Motul", sku: "REF-008", category: "Lubricantes", stock: 15, minStock: 4, cost: 25000, price: 42000, supplier: "Motul CO", createdAt: Date.now() },
-  ]);
-
-  await db.services.bulkAdd([
-    { name: "Cambio de aceite", price: 35000, cost: 5000, estimatedMinutes: 20, description: "Incluye drenado y revisión." },
-    { name: "Ajuste de válvulas", price: 180000, cost: 30000, estimatedMinutes: 120 },
-    { name: "Mantenimiento CVT", price: 120000, cost: 20000, estimatedMinutes: 90 },
-    { name: "Cambio de clutch", price: 220000, cost: 50000, estimatedMinutes: 150 },
-    { name: "Scanner / Diagnóstico", price: 50000, cost: 0, estimatedMinutes: 30 },
-    { name: "Mano de obra (hora)", price: 60000, cost: 0, estimatedMinutes: 60 },
-  ]);
-
-  await db.customers.bulkAdd([
-    { name: "Carlos Ramírez", phone: "3001234567", motorcycle: "Yamaha MT-03", plate: "ABC12D", km: 14500, createdAt: Date.now() },
-    { name: "María López", phone: "3015551122", motorcycle: "Honda CB190R", plate: "XYZ89E", km: 8200, createdAt: Date.now() },
-    { name: "Andrés Gómez", phone: "3109998877", motorcycle: "KTM Duke 390", plate: "MOT22F", km: 22100, createdAt: Date.now() },
-  ]);
 }
