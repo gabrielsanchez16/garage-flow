@@ -95,8 +95,11 @@ function PurchaseDialog({ open, onOpenChange }: any) {
 
   async function save() {
     if (!supplier || items.length === 0) return toast.error("Proveedor e ítems requeridos");
+    const now = new Date();
+    const periodKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
     await db.purchases.add({
       date: Date.now(),
+      periodKey,
       supplier,
       invoice,
       items,
