@@ -15,7 +15,10 @@ import { Route as ServicesRouteImport } from './routes/services'
 import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as PurchasesRouteImport } from './routes/purchases'
 import { Route as PosRouteImport } from './routes/pos'
+import { Route as PeriodsRouteImport } from './routes/periods'
+import { Route as MechanicsRouteImport } from './routes/mechanics'
 import { Route as InventoryRouteImport } from './routes/inventory'
+import { Route as ExpensesRouteImport } from './routes/expenses'
 import { Route as CustomersRouteImport } from './routes/customers'
 import { Route as CashRouteImport } from './routes/cash'
 import { Route as BackupsRouteImport } from './routes/backups'
@@ -51,9 +54,24 @@ const PosRoute = PosRouteImport.update({
   path: '/pos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PeriodsRoute = PeriodsRouteImport.update({
+  id: '/periods',
+  path: '/periods',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MechanicsRoute = MechanicsRouteImport.update({
+  id: '/mechanics',
+  path: '/mechanics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const InventoryRoute = InventoryRouteImport.update({
   id: '/inventory',
   path: '/inventory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExpensesRoute = ExpensesRouteImport.update({
+  id: '/expenses',
+  path: '/expenses',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CustomersRoute = CustomersRouteImport.update({
@@ -82,7 +100,10 @@ export interface FileRoutesByFullPath {
   '/backups': typeof BackupsRoute
   '/cash': typeof CashRoute
   '/customers': typeof CustomersRoute
+  '/expenses': typeof ExpensesRoute
   '/inventory': typeof InventoryRoute
+  '/mechanics': typeof MechanicsRoute
+  '/periods': typeof PeriodsRoute
   '/pos': typeof PosRoute
   '/purchases': typeof PurchasesRoute
   '/reports': typeof ReportsRoute
@@ -95,7 +116,10 @@ export interface FileRoutesByTo {
   '/backups': typeof BackupsRoute
   '/cash': typeof CashRoute
   '/customers': typeof CustomersRoute
+  '/expenses': typeof ExpensesRoute
   '/inventory': typeof InventoryRoute
+  '/mechanics': typeof MechanicsRoute
+  '/periods': typeof PeriodsRoute
   '/pos': typeof PosRoute
   '/purchases': typeof PurchasesRoute
   '/reports': typeof ReportsRoute
@@ -109,7 +133,10 @@ export interface FileRoutesById {
   '/backups': typeof BackupsRoute
   '/cash': typeof CashRoute
   '/customers': typeof CustomersRoute
+  '/expenses': typeof ExpensesRoute
   '/inventory': typeof InventoryRoute
+  '/mechanics': typeof MechanicsRoute
+  '/periods': typeof PeriodsRoute
   '/pos': typeof PosRoute
   '/purchases': typeof PurchasesRoute
   '/reports': typeof ReportsRoute
@@ -124,7 +151,10 @@ export interface FileRouteTypes {
     | '/backups'
     | '/cash'
     | '/customers'
+    | '/expenses'
     | '/inventory'
+    | '/mechanics'
+    | '/periods'
     | '/pos'
     | '/purchases'
     | '/reports'
@@ -137,7 +167,10 @@ export interface FileRouteTypes {
     | '/backups'
     | '/cash'
     | '/customers'
+    | '/expenses'
     | '/inventory'
+    | '/mechanics'
+    | '/periods'
     | '/pos'
     | '/purchases'
     | '/reports'
@@ -150,7 +183,10 @@ export interface FileRouteTypes {
     | '/backups'
     | '/cash'
     | '/customers'
+    | '/expenses'
     | '/inventory'
+    | '/mechanics'
+    | '/periods'
     | '/pos'
     | '/purchases'
     | '/reports'
@@ -164,7 +200,10 @@ export interface RootRouteChildren {
   BackupsRoute: typeof BackupsRoute
   CashRoute: typeof CashRoute
   CustomersRoute: typeof CustomersRoute
+  ExpensesRoute: typeof ExpensesRoute
   InventoryRoute: typeof InventoryRoute
+  MechanicsRoute: typeof MechanicsRoute
+  PeriodsRoute: typeof PeriodsRoute
   PosRoute: typeof PosRoute
   PurchasesRoute: typeof PurchasesRoute
   ReportsRoute: typeof ReportsRoute
@@ -217,11 +256,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/periods': {
+      id: '/periods'
+      path: '/periods'
+      fullPath: '/periods'
+      preLoaderRoute: typeof PeriodsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mechanics': {
+      id: '/mechanics'
+      path: '/mechanics'
+      fullPath: '/mechanics'
+      preLoaderRoute: typeof MechanicsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/inventory': {
       id: '/inventory'
       path: '/inventory'
       fullPath: '/inventory'
       preLoaderRoute: typeof InventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/expenses': {
+      id: '/expenses'
+      path: '/expenses'
+      fullPath: '/expenses'
+      preLoaderRoute: typeof ExpensesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/customers': {
@@ -260,7 +320,10 @@ const rootRouteChildren: RootRouteChildren = {
   BackupsRoute: BackupsRoute,
   CashRoute: CashRoute,
   CustomersRoute: CustomersRoute,
+  ExpensesRoute: ExpensesRoute,
   InventoryRoute: InventoryRoute,
+  MechanicsRoute: MechanicsRoute,
+  PeriodsRoute: PeriodsRoute,
   PosRoute: PosRoute,
   PurchasesRoute: PurchasesRoute,
   ReportsRoute: ReportsRoute,
