@@ -12,45 +12,65 @@ import {
   Database,
   Settings as SettingsIcon,
   Menu,
-  Bell,
-  Search,
+  CalendarRange,
+  Receipt,
+  HardHat,
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
 import { motion } from "framer-motion";
 import { Toaster } from "@/components/ui/sonner";
-import { seedIfEmpty } from "@/lib/db";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { db, seedIfEmpty, ensureCurrentPeriod } from "@/lib/db";
+import { usePeriod } from "@/stores/period";
+import { periodLabel } from "@/lib/period";
 import { cn } from "@/lib/utils";
 
 const nav = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/pos", label: "POS", icon: ShoppingCart },
-  { to: "/inventory", label: "Inventario", icon: Boxes },
-  { to: "/cash", label: "Caja", icon: Wallet },
-  { to: "/customers", label: "Clientes", icon: Users },
-  { to: "/services", label: "Servicios", icon: Wrench },
   { to: "/work-orders", label: "Órdenes", icon: ClipboardList },
+  { to: "/inventory", label: "Inventario", icon: Boxes },
+  { to: "/services", label: "Servicios", icon: Wrench },
+  { to: "/customers", label: "Clientes", icon: Users },
+  { to: "/mechanics", label: "Mecánicos", icon: HardHat },
+  { to: "/expenses", label: "Gastos", icon: Receipt },
+  { to: "/cash", label: "Caja", icon: Wallet },
   { to: "/purchases", label: "Compras", icon: PackagePlus },
   { to: "/reports", label: "Reportes", icon: BarChart3 },
+  { to: "/periods", label: "Períodos", icon: CalendarRange },
   { to: "/backups", label: "Backups", icon: Database },
 ];
 
-const mobileNav = nav.slice(0, 5);
+const mobileNav = [
+  { to: "/", label: "Inicio", icon: LayoutDashboard },
+  { to: "/work-orders", label: "Órdenes", icon: ClipboardList },
+  { to: "/pos", label: "POS", icon: ShoppingCart },
+  { to: "/cash", label: "Caja", icon: Wallet },
+  { to: "/expenses", label: "Más", icon: Menu },
+];
 
 export function AppLayout() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     seedIfEmpty();
+    ensureCurrentPeriod();
   }, []);
 
   return (
     <div className="min-h-screen flex">
-      {/* Sidebar (desktop) */}
       <aside
         className={cn(
           "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border transition-all",
-          open ? "w-64" : "w-20"
+          open ? "w-60" : "w-20"
         )}
       >
         <div className="h-16 flex items-center gap-3 px-4 border-b border-sidebar-border">
@@ -78,7 +98,7 @@ export function AppLayout() {
                 key={n.to}
                 to={n.to}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all relative group",
+                  "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all relative",
                   active
                     ? "bg-primary/15 text-primary"
                     : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground"
@@ -107,7 +127,6 @@ export function AppLayout() {
         </div>
       </aside>
 
-      {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-border bg-card/40 backdrop-blur-xl sticky top-0 z-30">
           <div className="h-full px-4 lg:px-6 flex items-center gap-3">
@@ -120,20 +139,8 @@ export function AppLayout() {
                 </div>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2 px-3 h-10 w-full max-w-md rounded-xl bg-muted/40 border border-border">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <input
-                placeholder="Buscar producto, cliente, orden…"
-                className="bg-transparent text-sm outline-none flex-1 placeholder:text-muted-foreground"
-              />
-              <kbd className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5">
-                ⌘K
-              </kbd>
-            </div>
+            <PeriodSelector />
             <div className="ml-auto flex items-center gap-2">
-              <button className="h-10 w-10 grid place-items-center rounded-xl bg-muted/40 border border-border hover:bg-muted">
-                <Bell className="h-4 w-4" />
-              </button>
               <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-amber-600 grid place-items-center text-primary-foreground font-bold text-sm shadow-lg shadow-primary/20">
                 FG
               </div>
@@ -145,8 +152,7 @@ export function AppLayout() {
         </main>
       </div>
 
-      {/* Bottom nav (mobile) */}
-      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/90 backdrop-blur-xl">
+      <nav className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 backdrop-blur-xl">
         <div className="grid grid-cols-5">
           {mobileNav.map((n) => {
             const active = path === n.to || (n.to !== "/" && path.startsWith(n.to));
@@ -168,6 +174,36 @@ export function AppLayout() {
       </nav>
 
       <Toaster theme="dark" position="top-right" />
+    </div>
+  );
+}
+
+function PeriodSelector() {
+  const { activeKey, setActive } = usePeriod();
+  const periods = useLiveQuery(() => db.periods.toArray(), []) ?? [];
+  const sorted = [...periods].sort((a, b) => (a.key < b.key ? 1 : -1));
+
+  return (
+    <div className="flex items-center gap-2 px-3 h-10 rounded-xl bg-muted/40 border border-border min-w-0">
+      <CalendarRange className="h-4 w-4 text-primary shrink-0" />
+      <span className="text-[10px] uppercase tracking-widest text-muted-foreground hidden sm:inline">
+        Período
+      </span>
+      <Select value={activeKey} onValueChange={setActive}>
+        <SelectTrigger className="h-8 border-0 bg-transparent px-1 text-sm font-semibold focus:ring-0">
+          <SelectValue placeholder={periodLabel(activeKey)} />
+        </SelectTrigger>
+        <SelectContent>
+          {sorted.length === 0 && (
+            <SelectItem value={activeKey}>{periodLabel(activeKey)}</SelectItem>
+          )}
+          {sorted.map((p) => (
+            <SelectItem key={p.key} value={p.key}>
+              {p.label} {p.status === "closed" ? "· cerrado" : ""}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

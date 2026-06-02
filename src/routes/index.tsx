@@ -1,112 +1,81 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useState } from "react";
 import { db } from "@/lib/db";
-import { money, fmtDate } from "@/lib/format";
+import { money } from "@/lib/format";
+import { periodKPIs, type ProfitBreakdown } from "@/lib/accounting";
+import { usePeriod } from "@/stores/period";
+import { periodLabel } from "@/lib/period";
 import { PageHeader } from "@/components/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import {
-  TrendingUp,
-  DollarSign,
   Wallet,
-  AlertTriangle,
-  ShoppingCart,
+  TrendingUp,
+  Receipt,
+  HardHat,
+  CupSoda,
+  Boxes,
+  PackageOpen,
   Wrench,
-  ArrowUpRight,
+  ClipboardList,
+  AlertTriangle,
 } from "lucide-react";
-import {
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-} from "recharts";
 import { motion } from "framer-motion";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 
 export const Route = createFileRoute("/")({ component: Dashboard });
 
+const COLORS = ["oklch(0.745 0.175 55)", "oklch(0.7 0.18 145)", "oklch(0.65 0.18 25)", "oklch(0.65 0.18 260)"];
+
 function Dashboard() {
-  const sales = useLiveQuery(() => db.sales.orderBy("date").reverse().toArray(), []) ?? [];
+  const { activeKey } = usePeriod();
   const products = useLiveQuery(() => db.products.toArray(), []) ?? [];
-  const cash = useLiveQuery(() => db.cashSessions.where("status").equals("open").first(), []);
-
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const today = sales.filter((s) => s.date >= startOfDay.getTime());
-  const todaysRevenue = today.reduce((a, b) => a + b.total, 0);
-  const todaysProfit = today.reduce((a, b) => a + b.profit, 0);
+  const wos = useLiveQuery(
+    () => db.workOrders.where("periodKey").equals(activeKey).toArray(),
+    [activeKey]
+  ) ?? [];
   const lowStock = products.filter((p) => p.stock <= p.minStock);
+  const [kpi, setKpi] = useState<Awaited<ReturnType<typeof periodKPIs>> | null>(null);
 
-  // Build last-7-days chart
-  const days = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - (6 - i));
-    return d;
-  });
-  const chart = days.map((d) => {
-    const next = new Date(d);
-    next.setDate(d.getDate() + 1);
-    const total = sales
-      .filter((s) => s.date >= d.getTime() && s.date < next.getTime())
-      .reduce((a, b) => a + b.total, 0);
-    return {
-      label: d.toLocaleDateString("es-CO", { weekday: "short" }),
-      total,
-    };
-  });
+  useEffect(() => {
+    periodKPIs(activeKey).then(setKpi);
+    // recompute on any data change tied to live queries
+  }, [activeKey, wos.length, products.length]);
+
+  const p: ProfitBreakdown = kpi?.profit ?? { bebidas: 0, repuestosTaller: 0, repuestosExternos: 0, manoObra: 0, insumos: 0, mecanico: 0, total: 0 };
+
+  const pieData = [
+    { name: "Bebidas", value: p.bebidas, icon: CupSoda },
+    { name: "Repuestos taller", value: p.repuestosTaller, icon: Boxes },
+    { name: "Repuestos externos", value: p.repuestosExternos, icon: PackageOpen },
+    { name: "Mano de obra", value: p.manoObra, icon: Wrench },
+  ];
+  const totalProfit = pieData.reduce((a, b) => a + b.value, 0);
 
   const kpis = [
-    {
-      label: "Ventas hoy",
-      value: money(todaysRevenue),
-      sub: `${today.length} transacciones`,
-      icon: DollarSign,
-      tone: "text-primary",
-    },
-    {
-      label: "Utilidad hoy",
-      value: money(todaysProfit),
-      sub: "Margen bruto",
-      icon: TrendingUp,
-      tone: "text-emerald-400",
-    },
-    {
-      label: "Caja actual",
-      value: cash ? "Abierta" : "Cerrada",
-      sub: cash ? `Apertura ${money(cash.openingAmount)}` : "Sin sesión activa",
-      icon: Wallet,
-      tone: cash ? "text-emerald-400" : "text-muted-foreground",
-    },
-    {
-      label: "Stock bajo",
-      value: String(lowStock.length),
-      sub: "Productos por reponer",
-      icon: AlertTriangle,
-      tone: "text-amber-400",
-    },
+    { label: "Caja esperada", value: money(kpi?.cashExpected ?? 0), sub: "Movimientos del mes", icon: Wallet, tone: "text-primary" },
+    { label: "Ganancia total", value: money(totalProfit), sub: `${kpi?.workOrders.closed ?? 0} OS cerradas`, icon: TrendingUp, tone: "text-emerald-400" },
+    { label: "Por pagar mecánicos", value: money(kpi?.mechanicOwed ?? 0), sub: `Pagado: ${money(kpi?.mechanicPaid ?? 0)}`, icon: HardHat, tone: "text-amber-400" },
+    { label: "Gastos del mes", value: money(kpi?.expenses ?? 0), sub: "Arriendo, servicios, otros", icon: Receipt, tone: "text-destructive" },
   ];
 
   return (
     <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
-      <PageHeader title="Dashboard" subtitle="Resumen del taller en tiempo real" />
+      <PageHeader title="Dashboard" subtitle={`Resumen de ${periodLabel(activeKey)}`} />
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
         {kpis.map((k, i) => (
-          <motion.div
-            key={k.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
+          <motion.div key={k.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
             <Card className="metallic-border kpi-shine relative overflow-hidden">
               <CardContent className="p-4 md:p-5">
                 <div className="flex items-start justify-between">
-                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-                    {k.label}
-                  </div>
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground font-medium">{k.label}</div>
                   <div className={`h-9 w-9 rounded-xl bg-background/60 grid place-items-center ${k.tone}`}>
                     <k.icon className="h-4 w-4" />
                   </div>
@@ -120,125 +89,83 @@ function Dashboard() {
       </div>
 
       <div className="grid lg:grid-cols-3 gap-4 mt-6">
-        <Card className="lg:col-span-2 metallic-border">
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="lg:col-span-2 metallic-border p-5">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <CardTitle className="text-base">Ventas últimos 7 días</CardTitle>
-              <p className="text-xs text-muted-foreground">Ingresos diarios</p>
+              <div className="font-semibold">Ganancias por categoría</div>
+              <div className="text-xs text-muted-foreground">Distribución del mes</div>
             </div>
-            <Badge variant="secondary" className="gap-1">
-              <ArrowUpRight className="h-3 w-3 text-primary" /> En vivo
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
+            <div className="text-right">
+              <div className="text-xs text-muted-foreground">Total</div>
+              <div className="text-lg font-bold text-primary">{money(totalProfit)}</div>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4 items-center">
+            <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chart}>
-                  <defs>
-                    <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="oklch(0.745 0.175 55)" stopOpacity={0.5} />
-                      <stop offset="100%" stopColor="oklch(0.745 0.175 55)" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid stroke="oklch(1 0 0 / 0.06)" vertical={false} />
-                  <XAxis dataKey="label" tick={{ fill: "oklch(0.68 0.015 260)", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "oklch(0.68 0.015 260)", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v)} />
+                <PieChart>
+                  <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} strokeWidth={0}>
+                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  </Pie>
                   <Tooltip
-                    contentStyle={{
-                      background: "oklch(0.205 0.012 264)",
-                      border: "1px solid oklch(1 0 0 / 0.08)",
-                      borderRadius: 12,
-                      fontSize: 12,
-                    }}
+                    contentStyle={{ background: "oklch(0.205 0.012 264)", border: "1px solid oklch(1 0 0 / 0.08)", borderRadius: 12, fontSize: 12 }}
                     formatter={(v: number) => money(v)}
                   />
-                  <Area type="monotone" dataKey="total" stroke="oklch(0.745 0.175 55)" strokeWidth={2} fill="url(#g1)" />
-                </AreaChart>
+                </PieChart>
               </ResponsiveContainer>
             </div>
-          </CardContent>
+            <div className="space-y-2">
+              {pieData.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                  <span className="h-3 w-3 rounded-sm" style={{ background: COLORS[i] }} />
+                  <d.icon className="h-4 w-4 text-muted-foreground" />
+                  <div className="text-sm flex-1">{d.name}</div>
+                  <div className="text-sm font-semibold">{money(d.value)}</div>
+                </div>
+              ))}
+              <div className="text-xs text-muted-foreground pl-2 pt-1">
+                Incluido en mano de obra · insumos: <span className="text-foreground">{money(p.insumos)}</span>
+              </div>
+            </div>
+          </div>
         </Card>
 
-        <Card className="metallic-border">
-          <CardHeader>
-            <CardTitle className="text-base">Stock bajo</CardTitle>
-            <p className="text-xs text-muted-foreground">{lowStock.length} productos por reponer</p>
-          </CardHeader>
-          <CardContent className="space-y-2 max-h-72 overflow-y-auto">
-            {lowStock.length === 0 && (
-              <p className="text-sm text-muted-foreground py-8 text-center">Todo en orden ✓</p>
-            )}
-            {lowStock.map((p) => (
-              <div
-                key={p.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border"
-              >
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{p.sku}</div>
+        <Card className="metallic-border p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <ClipboardList className="h-4 w-4 text-primary" />
+            <div className="font-semibold">Órdenes del mes</div>
+          </div>
+          <div className="grid grid-cols-3 gap-2 mb-4">
+            <Mini label="Total" value={kpi?.workOrders.total ?? 0} />
+            <Mini label="Abiertas" value={kpi?.workOrders.open ?? 0} tone="text-amber-400" />
+            <Mini label="Cerradas" value={kpi?.workOrders.closed ?? 0} tone="text-emerald-400" />
+          </div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Stock bajo</div>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {lowStock.length === 0 ? (
+              <div className="text-xs text-muted-foreground py-4 text-center">Todo en orden ✓</div>
+            ) : (
+              lowStock.slice(0, 5).map((p) => (
+                <div key={p.id} className="flex items-center justify-between text-sm p-2 rounded-lg bg-muted/30">
+                  <span className="truncate flex items-center gap-2">
+                    <AlertTriangle className="h-3 w-3 text-amber-400" /> {p.name}
+                  </span>
+                  <span className="text-xs text-destructive font-bold">{p.stock}/{p.minStock}</span>
                 </div>
-                <Badge variant="destructive" className="shrink-0">
-                  {p.stock}/{p.minStock}
-                </Badge>
-              </div>
-            ))}
-          </CardContent>
+              ))
+            )}
+          </div>
         </Card>
       </div>
+    </div>
+  );
+}
 
-      <div className="grid lg:grid-cols-2 gap-4 mt-6">
-        <Card className="metallic-border">
-          <CardHeader className="flex flex-row items-center gap-2">
-            <ShoppingCart className="h-4 w-4 text-primary" />
-            <CardTitle className="text-base">Últimas ventas</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {sales.slice(0, 6).length === 0 && (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                Aún no hay ventas registradas.
-              </p>
-            )}
-            {sales.slice(0, 6).map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-muted/20 border border-border"
-              >
-                <div>
-                  <div className="text-sm font-medium">
-                    {s.items.length} ítems · {s.paymentMethod}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{fmtDate(s.date)}</div>
-                </div>
-                <div className="text-sm font-bold text-primary">{money(s.total)}</div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="metallic-border">
-          <CardHeader className="flex flex-row items-center gap-2">
-            <Wrench className="h-4 w-4 text-primary" />
-            <CardTitle className="text-base">Atajos rápidos</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-3">
-            {[
-              { label: "Nueva venta", to: "/pos", icon: ShoppingCart },
-              { label: "Abrir caja", to: "/cash", icon: Wallet },
-              { label: "Nueva orden", to: "/work-orders", icon: Wrench },
-              { label: "Inventario", to: "/inventory", icon: TrendingUp },
-            ].map((q) => (
-              <a
-                key={q.label}
-                href={q.to}
-                className="group p-4 rounded-2xl bg-muted/30 border border-border hover:border-primary/50 hover:bg-primary/10 transition-all"
-              >
-                <q.icon className="h-5 w-5 text-primary mb-3" />
-                <div className="text-sm font-medium">{q.label}</div>
-              </a>
-            ))}
-          </CardContent>
-        </Card>
-      </div>
+function Mini({ label, value, tone = "" }: { label: string; value: number; tone?: string }) {
+  return (
+    <div className="p-3 rounded-xl bg-muted/30 border border-border text-center">
+      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`text-xl font-bold mt-1 ${tone}`}>{value}</div>
     </div>
   );
 }

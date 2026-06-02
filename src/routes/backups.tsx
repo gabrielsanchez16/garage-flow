@@ -10,8 +10,19 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/backups")({ component: Backups });
 
 const tableNames = [
-  "products", "services", "customers", "sales", "purchases",
-  "cashSessions", "cashMovements", "inventoryMovements", "workOrders", "settings",
+  "products",
+  "services",
+  "customers",
+  "mechanics",
+  "sales",
+  "purchases",
+  "expenses",
+  "mechanicPayouts",
+  "cashMovements",
+  "inventoryMovements",
+  "workOrders",
+  "periods",
+  "settings",
 ] as const;
 
 function Backups() {
@@ -20,11 +31,9 @@ function Backups() {
   async function exportAll() {
     const data: Record<string, unknown[]> = {};
     for (const t of tableNames) {
-      data[t] = await (db as any)[t].toArray();
+      data[t] = await (db as unknown as Record<string, { toArray: () => Promise<unknown[]> }>)[t].toArray();
     }
-    const blob = new Blob([JSON.stringify({ version: 1, exportedAt: Date.now(), data }, null, 2)], {
-      type: "application/json",
-    });
+    const blob = new Blob([JSON.stringify({ version: 2, exportedAt: Date.now(), data }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -41,13 +50,15 @@ function Backups() {
       const data = parsed.data ?? parsed;
       if (!confirm("Esto reemplazará todos los datos actuales. ¿Continuar?")) return;
       for (const t of tableNames) {
-        await (db as any)[t].clear();
-        if (Array.isArray(data[t])) {
-          await (db as any)[t].bulkAdd(data[t]);
+        const table = (db as unknown as Record<string, { clear: () => Promise<void>; bulkAdd: (xs: unknown[]) => Promise<unknown>; bulkPut: (xs: unknown[]) => Promise<unknown> }>)[t];
+        await table.clear();
+        if (Array.isArray(data[t]) && data[t].length > 0) {
+          if (t === "periods") await table.bulkPut(data[t]);
+          else await table.bulkAdd(data[t]);
         }
       }
       toast.success("Backup restaurado");
-    } catch (e) {
+    } catch {
       toast.error("Archivo inválido");
     }
   }
@@ -63,7 +74,7 @@ function Backups() {
           </div>
           <div className="font-semibold mt-3">Exportar backup</div>
           <p className="text-sm text-muted-foreground mt-1">
-            Descarga un archivo JSON con todos los datos del taller.
+            Descarga un archivo JSON con todos los datos del taller (incluye períodos cerrados).
           </p>
           <Button onClick={exportAll} className="mt-4 w-full gap-2">
             <Download className="h-4 w-4" /> Exportar JSON
@@ -101,8 +112,8 @@ function Backups() {
           <div className="text-sm">
             <div className="font-semibold">Almacenamiento 100% local</div>
             <p className="text-muted-foreground mt-1">
-              Toda tu información se guarda offline en IndexedDB de este dispositivo. Realiza backups
-              con frecuencia y guárdalos en un lugar seguro.
+              Toda tu información se guarda offline en IndexedDB de este dispositivo.
+              Realiza backups con frecuencia y guárdalos en un lugar seguro.
             </p>
           </div>
         </div>

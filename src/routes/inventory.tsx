@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, type Product } from "@/lib/db";
+import { db, type Product, type ProductType } from "@/lib/db";
 import { money } from "@/lib/format";
 import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
@@ -16,6 +16,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Search, Pencil, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
@@ -42,13 +49,7 @@ function Inventory() {
         title="Inventario"
         subtitle={`${products.length} productos · Valor: ${money(totalValue)}`}
         action={
-          <Button
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-            className="gap-2"
-          >
+          <Button onClick={() => { setEditing(null); setOpen(true); }} className="gap-2">
             <Plus className="h-4 w-4" /> Nuevo producto
           </Button>
         }
@@ -73,12 +74,7 @@ function Inventory() {
 
       <div className="flex items-center gap-2 px-3 h-11 rounded-xl bg-muted/40 border border-border mb-4">
         <Search className="h-4 w-4 text-muted-foreground" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar productos…"
-          className="bg-transparent outline-none flex-1 text-sm"
-        />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar productos…" className="bg-transparent outline-none flex-1 text-sm" />
       </div>
 
       <Card className="metallic-border overflow-hidden">
@@ -88,6 +84,7 @@ function Inventory() {
               <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground border-b border-border">
                 <th className="px-4 py-3">Producto</th>
                 <th className="px-4 py-3">SKU</th>
+                <th className="px-4 py-3">Tipo</th>
                 <th className="px-4 py-3">Categoría</th>
                 <th className="px-4 py-3 text-right">Stock</th>
                 <th className="px-4 py-3 text-right">Costo</th>
@@ -104,50 +101,30 @@ function Inventory() {
                   <tr key={p.id} className="border-b border-border/50 hover:bg-muted/20">
                     <td className="px-4 py-3 font-medium">{p.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{p.sku}</td>
-                    <td className="px-4 py-3">
-                      <Badge variant="secondary">{p.category}</Badge>
-                    </td>
+                    <td className="px-4 py-3"><Badge variant="outline" className="capitalize">{p.type}</Badge></td>
+                    <td className="px-4 py-3"><Badge variant="secondary">{p.category}</Badge></td>
                     <td className="px-4 py-3 text-right">
-                      <Badge variant={p.stock <= p.minStock ? "destructive" : "outline"}>
-                        {p.stock}
-                      </Badge>
+                      <Badge variant={p.stock <= p.minStock ? "destructive" : "outline"}>{p.stock}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">{money(p.cost)}</td>
                     <td className="px-4 py-3 text-right font-semibold">{money(p.price)}</td>
                     <td className="px-4 py-3 text-right text-emerald-400">{pct.toFixed(0)}%</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-1">
-                        <button
-                          onClick={() => {
-                            setEditing(p);
-                            setOpen(true);
-                          }}
-                          className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={async () => {
-                            if (confirm(`¿Eliminar "${p.name}"?`)) {
-                              await db.products.delete(p.id!);
-                              toast.success("Producto eliminado");
-                            }
-                          }}
-                          className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <button onClick={() => { setEditing(p); setOpen(true); }} className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground"><Pencil className="h-3.5 w-3.5" /></button>
+                        <button onClick={async () => {
+                          if (confirm(`¿Eliminar "${p.name}"?`)) {
+                            await db.products.delete(p.id!);
+                            toast.success("Producto eliminado");
+                          }
+                        }} className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
                       </div>
                     </td>
                   </tr>
                 );
               })}
               {filtered.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="text-center py-12 text-muted-foreground text-sm">
-                    Sin resultados.
-                  </td>
-                </tr>
+                <tr><td colSpan={9} className="text-center py-12 text-muted-foreground text-sm">Sin resultados.</td></tr>
               )}
             </tbody>
           </table>
@@ -159,35 +136,18 @@ function Inventory() {
   );
 }
 
-function ProductDialog({
-  open,
-  onOpenChange,
-  editing,
-}: {
-  open: boolean;
-  onOpenChange: (b: boolean) => void;
-  editing: Product | null;
-}) {
+function ProductDialog({ open, onOpenChange, editing }: { open: boolean; onOpenChange: (b: boolean) => void; editing: Product | null }) {
   const [form, setForm] = useState<Partial<Product>>({});
-  const init = editing ?? {
-    name: "",
-    sku: "",
-    category: "",
-    stock: 0,
-    minStock: 1,
-    cost: 0,
-    price: 0,
-    supplier: "",
-  };
-  const data = { ...init, ...form };
+  const init: Product = { name: "", sku: "", category: "", type: "repuesto", stock: 0, minStock: 1, cost: 0, price: 0, supplier: "", createdAt: Date.now() };
+  const data: Product = { ...init, ...(editing ?? {}), ...form } as Product;
 
   async function save() {
     if (!data.name || !data.sku) return toast.error("Nombre y SKU requeridos");
     if (editing) {
-      await db.products.update(editing.id!, data as Product);
+      await db.products.update(editing.id!, data);
       toast.success("Producto actualizado");
     } else {
-      await db.products.add({ ...(data as Product), createdAt: Date.now() });
+      await db.products.add({ ...data, createdAt: Date.now() });
       toast.success("Producto creado");
     }
     setForm({});
@@ -195,83 +155,32 @@ function ProductDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(b) => {
-        if (!b) setForm({});
-        onOpenChange(b);
-      }}
-    >
+    <Dialog open={open} onOpenChange={(b) => { if (!b) setForm({}); onOpenChange(b); }}>
       <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{editing ? "Editar producto" : "Nuevo producto"}</DialogTitle>
-        </DialogHeader>
+        <DialogHeader><DialogTitle>{editing ? "Editar producto" : "Nuevo producto"}</DialogTitle></DialogHeader>
         <div className="grid grid-cols-2 gap-3">
-          <div className="col-span-2">
-            <Label>Nombre</Label>
-            <Input
-              value={data.name ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
-          </div>
+          <div className="col-span-2"><Label>Nombre</Label><Input value={data.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} /></div>
+          <div><Label>SKU</Label><Input value={data.sku} onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))} /></div>
           <div>
-            <Label>SKU</Label>
-            <Input
-              value={data.sku ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, sku: e.target.value }))}
-            />
+            <Label>Tipo</Label>
+            <Select value={data.type} onValueChange={(v) => setForm((f) => ({ ...f, type: v as ProductType }))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="repuesto">Repuesto</SelectItem>
+                <SelectItem value="bebida">Bebida</SelectItem>
+                <SelectItem value="otro">Otro</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <div>
-            <Label>Categoría</Label>
-            <Input
-              value={data.category ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-            />
-          </div>
-          <div>
-            <Label>Stock</Label>
-            <Input
-              type="number"
-              value={data.stock ?? 0}
-              onChange={(e) => setForm((f) => ({ ...f, stock: Number(e.target.value) }))}
-            />
-          </div>
-          <div>
-            <Label>Stock mínimo</Label>
-            <Input
-              type="number"
-              value={data.minStock ?? 0}
-              onChange={(e) => setForm((f) => ({ ...f, minStock: Number(e.target.value) }))}
-            />
-          </div>
-          <div>
-            <Label>Costo</Label>
-            <Input
-              type="number"
-              value={data.cost ?? 0}
-              onChange={(e) => setForm((f) => ({ ...f, cost: Number(e.target.value) }))}
-            />
-          </div>
-          <div>
-            <Label>Precio venta</Label>
-            <Input
-              type="number"
-              value={data.price ?? 0}
-              onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))}
-            />
-          </div>
-          <div className="col-span-2">
-            <Label>Proveedor</Label>
-            <Input
-              value={data.supplier ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))}
-            />
-          </div>
+          <div><Label>Categoría</Label><Input value={data.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} /></div>
+          <div><Label>Stock</Label><Input type="number" value={data.stock} onChange={(e) => setForm((f) => ({ ...f, stock: Number(e.target.value) }))} /></div>
+          <div><Label>Stock mínimo</Label><Input type="number" value={data.minStock} onChange={(e) => setForm((f) => ({ ...f, minStock: Number(e.target.value) }))} /></div>
+          <div><Label>Costo</Label><Input type="number" value={data.cost} onChange={(e) => setForm((f) => ({ ...f, cost: Number(e.target.value) }))} /></div>
+          <div><Label>Precio venta</Label><Input type="number" value={data.price} onChange={(e) => setForm((f) => ({ ...f, price: Number(e.target.value) }))} /></div>
+          <div className="col-span-2"><Label>Proveedor</Label><Input value={data.supplier ?? ""} onChange={(e) => setForm((f) => ({ ...f, supplier: e.target.value }))} /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
           <Button onClick={save}>Guardar</Button>
         </DialogFooter>
       </DialogContent>
