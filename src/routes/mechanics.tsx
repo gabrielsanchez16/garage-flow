@@ -96,13 +96,8 @@ function Mechanics() {
   );
 }
 
-function useStateEffect(...deps: unknown[]) {
-  const fn = deps[deps.length - 1] as () => void;
-  const arr = deps.slice(0, -1);
-  // tiny custom effect using react hook
-  const React = require("react") as typeof import("react");
-  React.useEffect(() => { fn(); }, arr); // eslint-disable-line react-hooks/exhaustive-deps
-}
+
+
 
 function Box({ label, v, tone = "" }: { label: string; v: string; tone?: string }) {
   return (
