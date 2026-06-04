@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { db, type Mechanic } from "@/lib/db";
 import { money } from "@/lib/format";
@@ -36,13 +36,9 @@ function Mechanics() {
   const wos = useLiveQuery(() => db.workOrders.where("periodKey").equals(activeKey).toArray(), [activeKey]) ?? [];
 
   const [rows, setRows] = useState<Awaited<ReturnType<typeof mechanicEarnings>>>([]);
-  useState(() => {
+  useEffect(() => {
     mechanicEarnings(activeKey).then(setRows);
-  });
-  // recompute when deps change
-  useStateEffect(activeKey, payouts.length, wos.length, mechanics.length, () => {
-    mechanicEarnings(activeKey).then(setRows);
-  });
+  }, [activeKey, payouts.length, wos.length, mechanics.length]);
 
   return (
     <div className="p-4 md:p-6 max-w-[1600px] mx-auto">
@@ -100,13 +96,8 @@ function Mechanics() {
   );
 }
 
-function useStateEffect(...deps: unknown[]) {
-  const fn = deps[deps.length - 1] as () => void;
-  const arr = deps.slice(0, -1);
-  // tiny custom effect using react hook
-  const React = require("react") as typeof import("react");
-  React.useEffect(() => { fn(); }, arr); // eslint-disable-line react-hooks/exhaustive-deps
-}
+
+
 
 function Box({ label, v, tone = "" }: { label: string; v: string; tone?: string }) {
   return (
